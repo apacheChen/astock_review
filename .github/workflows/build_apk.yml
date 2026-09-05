@@ -1,0 +1,41 @@
+姓名：构建安卓安装包
+
+在……之上:
+workflow_dispatch:
+推:
+分支机构: [主要的]
+
+工作:
+建立:
+连续的: Ubuntu-最新
+timeout-minutes: 60
+步骤:
+      - uses: 操作/结帐@v4
+
+      - uses: 操作/设置-Java@v4
+和……一起:
+分布: temurin
+java版: '17'
+
+      - uses: subosito/颤振作用@v2
+和……一起:
+颤振型: '3.27.4'
+渠道: 稳定的
+
+      - uses: actions/setup-python@v5
+和……一起:
+python版: '3.12'
+
+      - 姓名: 安装Flet
+跑: PIP安装"flet==0.28.3"
+
+      - 姓名: 构建安装包
+跑: flet生成apk-release
+
+      - 姓名: 上传安装包
+uses: 操作/上载工件@v4
+和……一起:
+姓名: astock-review-apk
+路径: build/apk/release/app-release.apk
+保留天数: 30
+
