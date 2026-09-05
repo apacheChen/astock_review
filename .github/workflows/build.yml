@@ -9,7 +9,8 @@ concurrency:
 
 jobs:
   build-apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+
     timeout-minutes: 300
 
     steps:
@@ -26,7 +27,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential ccache git zip unzip \
             openjdk-17-jdk autoconf automake libtool pkg-config \
-            zlib1g-dev libncurses-dev libffi-dev libssl-dev cmake libgl1
+            zlib1g-dev libncurses-dev libffi-dev libssl-dev cmake libgl1 libltdl-dev
 
       - name: ④ 指定 Java 17
         run: echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
