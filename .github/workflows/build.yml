@@ -1,0 +1,85 @@
+name: 打包APK(云编译)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 300
+
+    steps:
+      - name: ① 拉取代码
+        uses: actions/checkout@v4
+
+      - name: ② 安装 Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: ③ 安装系统依赖(对照官方清单一次装齐)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential ccache git zip unzip \
+            openjdk-17-jdk autoconf automake libtool libtool-bin pkg-config m4 \
+            gettext autopoint patch lbzip2 patchelf cpio rsync xz-utils file \
+            zlib1g-dev libncurses-dev libncurses5-dev libncursesw5-dev libtinfo5 \
+            libffi-dev libssl-dev cmake libgl1 libltdl-dev
+
+      - name: ④ 指定 Java 17
+        run: echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
+
+      - name: ⑤ 安装 buildozer 与 cython
+        run: |
+          pip install --upgrade pip setuptools wheel
+          pip install buildozer cython==0.29.36
+
+      - name: ⑥ 恢复打包缓存
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            ~/.cache/pip
+          key: buildozer-v2-${{ hashFiles('buildozer.spec') }}
+          restore-keys: buildozer-v2-
+
+      - name: ⑦ 编译 APK(黑匣子v2,保证失败时自动打印报错)
+        run: |
+          buildozer android debug 2>&1 | tee build.log
+          EXIT=${PIPESTATUS[0]}
+          echo ">>> buildozer 第一次退出码: $EXIT"
+          if [ "$EXIT" -ne 0 ]; then
+            echo ">>> 第一次失败,自动重试一次……"
+            buildozer android debug 2>&1 | tee -a build.log
+            EXIT=${PIPESTATUS[0]}
+            echo ">>> buildozer 第二次退出码: $EXIT"
+          fi
+          if [ "$EXIT" -ne 0 ]; then
+            echo ""
+            echo "==========【黑匣子】报错关键行(最后60条) =========="
+            grep -a -n -i -E "error:|fatal error|ErrorReturnCode|Traceback|autoreconf|No such file|not found|undefined reference|cannot find|Exception|FAILED" build.log | tail -60
+            echo ""
+            echo "==========【黑匣子】日志末尾(含报错上下文) =========="
+            tail -160 build.log
+          fi
+          exit $EXIT
+
+      - name: ⑧ 存档完整编译日志(无论成败都保存)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 7
+
+      - name: ⑨ 上传 APK 供下载
+        uses: actions/upload-artifact@v4
+        with:
+          name: astock-review-apk
+          path: bin/*.apk
+          if-no-files-found: error
+          retention-days: 30
