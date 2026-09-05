@@ -36,6 +36,17 @@ except ImportError:
 if platform not in ("android", "ios"):
     Window.size = (400, 780)
 
+# ===== 中文字体补丁:安卓上改用系统自带中文字体 =====
+from kivy.core.text import LabelBase
+if platform == "android":
+    for _f in ("/system/fonts/NotoSansCJK-Regular.ttc",
+               "/system/fonts/DroidSansFallback.ttf",
+               "/system/fonts/NotoSansSC-Regular.otf"):
+        if Path(_f).exists():
+            LabelBase.register(name="Roboto", fn_regular=_f)
+            break
+
+
 RED = "#e63946"    # 涨(A股习惯红涨)
 GREEN = "#2a9d8f"  # 跌
 ORANGE = "#f4a261"
