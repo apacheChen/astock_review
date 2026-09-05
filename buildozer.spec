@@ -19,6 +19,13 @@ android.minapi = 26
 android.api = 33
 android.ndk_api = 26
 android.archs = arm64-v8a
-android.ndk = r25b
+android.ndk = r25c
 android.accept_sdk_license = True
 android.allow_backup = True
+
+# ============ 以下为新增/修改的配置（解决下载404问题） ============
+# (str) python-for-android branch to use, defaults to master
+p4a.branch = develop
+
+# (str) OpenSSL version to use
+openssl.version = 1.1.1w
