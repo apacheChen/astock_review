@@ -1,0 +1,82 @@
+name: 打包APK(云编译)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+
+    steps:
+      - name: ① 拉取代码
+        uses: actions/checkout@v4
+
+      - name: ② 安装 Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: ③ 安装系统依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential ccache git zip unzip \
+            openjdk-17-jdk autoconf automake libtool pkg-config \
+            zlib1g-dev libncurses-dev libffi-dev libssl-dev cmake libgl1
+
+      - name: ④ 指定 Java 17
+        run: echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
+
+      - name: ⑤ 安装 buildozer 与 cython
+        run: |
+          pip install --upgrade pip setuptools wheel
+          pip install buildozer cython==0.29.36
+
+      - name: ⑥ 恢复打包缓存(第二次起大幅提速)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            ~/.cache/pip
+          key: buildozer-${{ hashFiles('buildozer.spec') }}
+          restore-keys: buildozer-
+
+      - name: ⑦ 编译 APK(带黑匣子,失败自动提取报错)
+        run: |
+          set -o pipefail
+          buildozer android debug 2>&1 | tee build.log
+          EXIT=$?
+          if [ $EXIT -ne 0 ]; then
+            echo "第一次失败,自动重试一次……"
+            buildozer android debug 2>&1 | tee -a build.log
+            EXIT=$?
+          fi
+          if [ $EXIT -ne 0 ]; then
+            echo ""
+            echo "==========【黑匣子】报错关键行(最后50条) =========="
+            grep -a -n -i -E "error:|fatal error|Traceback|No such file|not found|undefined reference|cannot find|Exception|FAILED" build.log | tail -50
+            echo ""
+            echo "==========【黑匣子】日志最后100行(真凶通常在这里) =========="
+            tail -100 build.log
+          fi
+          exit $EXIT
+
+      - name: ⑧ 存档完整编译日志(无论成败都保存)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 7
+
+      - name: ⑨ 上传 APK 供下载
+        uses: actions/upload-artifact@v4
+        with:
+          name: astock-review-apk
+          path: bin/*.apk
+          if-no-files-found: error
+          retention-days: 30
