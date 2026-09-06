@@ -55,6 +55,11 @@ jobs:
           restore-keys: buildozer-v6-
 
       - name: ⑧ 编译 APK(黑匣子)
+      - name: Clean buildozer cache
+        run: rm -rf ~/.buildozer/android/platform/android-ndk-* ~/.buildozer/android/platform/build-arm64-v8a
+
+      - name: Build APK
+        run: buildozer android debug
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
         run: |
