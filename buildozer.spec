@@ -1,5 +1,5 @@
 # buildozer.spec
-# 铁律:requirements 里禁止写 == 版本号,行尾禁止加 # 注释
+# 铁律:requirements 不写版本号,行尾不加 # 注释
 
 [buildozer]
 log_level = 2
@@ -23,4 +23,5 @@ android.archs = arm64-v8a
 android.ndk = 25b
 android.accept_sdk_license = True
 android.allow_backup = True
-p4a.branch = 2024.01.21
+p4a.branch = v2024.01.21
+
