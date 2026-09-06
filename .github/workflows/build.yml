@@ -1,91 +1,290 @@
 name: 打包APK(云编译)
 
 on:
+
+  # 允许手动点击 GitHub Actions 运行
   workflow_dispatch:
 
-concurrency:
-  group: build-apk
-  cancel-in-progress: true
 
 jobs:
+
   build-apk:
+
+    name: 编译 Android APK
+
+    # 固定 Ubuntu 22.04
     runs-on: ubuntu-22.04
+
+    # 最大运行时间
     timeout-minutes: 300
 
+
     steps:
-      - name: ① 拉取代码
+
+
+      # ========================================
+      # 1. 获取 GitHub 仓库代码
+      # ========================================
+
+      - name: ① 拉取项目代码
+
         uses: actions/checkout@v4
 
+
+      # ========================================
+      # 2. 安装 Python
+      # ========================================
+
       - name: ② 安装 Python 3.10
+
         uses: actions/setup-python@v5
+
         with:
+
           python-version: "3.10"
 
-      - name: ③ 清理磁盘
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
-            /opt/hostedtoolcache/CodeQL /usr/local/share/boost \
-            /usr/local/lib/android/sdk || true
-          df -h /
 
-      - name: ④ 安装系统依赖
+      # ========================================
+      # 3. 查看环境
+      # ========================================
+
+      - name: ③ 查看构建环境
+
         run: |
+
+          echo "========== Python =========="
+
+          python --version
+
+          which python
+
+          echo ""
+
+          echo "========== Java =========="
+
+          java -version
+
+          echo ""
+
+          echo "========== Android =========="
+
+          echo "ANDROID_HOME=$ANDROID_HOME"
+
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
+
+          echo ""
+
+          df -h
+
+
+      # ========================================
+      # 4. 清理磁盘空间
+      # 注意：
+      # 不删除 Android SDK
+      # ========================================
+
+      - name: ④ 清理磁盘空间
+
+        run: |
+
+          sudo rm -rf \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL \
+            /usr/local/share/boost || true
+
+          echo "========== 清理后磁盘 =========="
+
+          df -h
+
+
+      # ========================================
+      # 5. 安装系统依赖
+      # ========================================
+
+      - name: ⑤ 安装系统依赖
+
+        run: |
+
           sudo apt-get update
-          sudo apt-get install -y build-essential ccache git zip unzip \
-            openjdk-17-jdk autoconf automake libtool libtool-bin pkg-config m4 \
-            gettext autopoint patch lbzip2 patchelf cpio rsync xz-utils file \
-            zlib1g-dev libncurses-dev libtinfo5 \
-            libffi-dev libssl-dev cmake libgl1 libltdl-dev
 
-      - name: ⑤ 指定 Java 17
-        run: echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
+          sudo apt-get install -y \
+            build-essential \
+            ccache \
+            git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            autoconf \
+            automake \
+            libtool \
+            libtool-bin \
+            pkg-config \
+            m4 \
+            gettext \
+            autopoint \
+            patch \
+            lbzip2 \
+            patchelf \
+            cpio \
+            rsync \
+            xz-utils \
+            file \
+            zlib1g-dev \
+            libncurses-dev \
+            libffi-dev \
+            libssl-dev \
+            cmake \
+            libgl1 \
+            libltdl-dev
 
-      - name: ⑥ 安装 buildozer 与 cython
+
+      # ========================================
+      # 6. 固定 Java 17
+      # ========================================
+
+      - name: ⑥ 设置 Java 17
+
         run: |
-          pip install --upgrade pip setuptools wheel
-          pip install buildozer cython==0.29.36
 
-      - name: ⑦ 恢复打包缓存
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.buildozer
-            ~/.cache/pip
-          key: buildozer-v6-${{ hashFiles('buildozer.spec') }}
-          restore-keys: buildozer-v6-
+          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
 
-      - name: ⑦.5 清理旧缓存（强制重新下载 NDK 和 p4a）
-        run: rm -rf ~/.buildozer/android/platform/android-ndk-* ~/.buildozer/android/platform/python-for-android ~/.buildozer/android/platform/build-arm64-v8a
+          echo "$JAVA_HOME/bin" >> $GITHUB_PATH
 
-      - name: ⑧ 编译 APK（黑匣子）
+
+      # ========================================
+      # 7. 安装 Buildozer
+      # ========================================
+
+      - name: ⑦ 安装 Buildozer
+
         run: |
+
+          python -m pip install --upgrade pip setuptools wheel
+
+          python -m pip install \
+            buildozer \
+            "Cython<3"
+
+
+      # ========================================
+      # 8. 检查版本
+      # ========================================
+
+      - name: ⑧ 检查 Buildozer 环境
+
+        run: |
+
+          echo "========== Python =========="
+
+          python --version
+
+          echo ""
+
+          echo "========== Pip =========="
+
+          pip --version
+
+          echo ""
+
+          echo "========== Buildozer =========="
+
+          buildozer --version
+
+          echo ""
+
+          echo "========== Cython =========="
+
+          python -c "import Cython; print(Cython.__version__)"
+
+
+      # ========================================
+      # 9. 清理旧 Android 构建缓存
+      #
+      # 非常重要
+      #
+      # 防止旧的 python-for-android
+      # hostpython / python3 版本混合
+      # ========================================
+
+      - name: ⑨ 清理旧 Buildozer 环境
+
+        run: |
+
+          echo "========== 清理项目构建目录 =========="
+
+          rm -rf .buildozer
+
+          rm -rf bin
+
+          echo "========== 清理用户 Buildozer 缓存 =========="
+
+          rm -rf ~/.buildozer/android/platform/python-for-android
+
+          rm -rf ~/.buildozer/android/platform/build-*
+
+          rm -rf ~/.buildozer/android/platform/android-ndk-*
+
+          rm -rf ~/.buildozer/android/packages
+
+
+      # ========================================
+      # 10. 编译 APK
+      # ========================================
+
+      - name: ⑩ 编译 APK
+
+        run: |
+
+          set -o pipefail
+
           buildozer android debug 2>&1 | tee build.log
-          EXIT=${PIPESTATUS[0]}
-          echo ">>> buildozer 退出码: $EXIT"
-          if [ "$EXIT" -ne 0 ]; then
-            echo ""
-            echo "==========【黑匣子】报错关键行(最后60条) =========="
-            grep -a -n -i -E "error:|fatal error|ErrorReturnCode|Traceback|No such file|not found|undefined reference|cannot find|Exception|FAILED|No space" build.log | tail -60 || true
-            echo ""
-            echo "==========【黑匣子】日志末尾 =========="
-            tail -160 build.log || true
-          fi
-          exit $EXIT
+
         env:
+
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
 
-      - name: ⑨ 存档完整日志
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build.log
-          retention-days: 7
 
-      - name: ⑩ 上传 APK
+      # ========================================
+      # 11. 无论成功失败都上传日志
+      # ========================================
+
+      - name: ⑪ 上传完整编译日志
+
+        if: always()
+
         uses: actions/upload-artifact@v4
+
         with:
+
+          name: build-log
+
+          path: build.log
+
+          if-no-files-found: warn
+
+          retention-days: 14
+
+
+      # ========================================
+      # 12. 成功后上传 APK
+      # ========================================
+
+      - name: ⑫ 上传 APK
+
+        if: success()
+
+        uses: actions/upload-artifact@v4
+
+        with:
+
           name: astock-review-apk
+
           path: bin/*.apk
+
           if-no-files-found: error
+
           retention-days: 30
