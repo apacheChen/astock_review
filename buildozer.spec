@@ -1,5 +1,4 @@
-# buildozer.spec
-# 铁律:requirements 不写版本号,行尾不加 # 注释
+# buildozer.spec —— Android 打包配置
 
 [buildozer]
 log_level = 2
@@ -10,9 +9,9 @@ title = A股复盘助手
 package.name = astockreview
 package.domain = org.apachechen
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,ttf,otf,json,txt
+source.include_exts = py,png,jpg,kv,atlas,json,txt
+requirements = python3==3.10.14,kivy==2.3.0,pandas==2.0.3,numpy==1.24.4,loguru
 version = 1.0.0
-requirements = python3,kivy,pandas,numpy,loguru
 orientation = portrait
 fullscreen = 0
 android.permissions = INTERNET,ACCESS_NETWORK_STATE
@@ -23,5 +22,7 @@ android.archs = arm64-v8a
 android.ndk = 25b
 android.accept_sdk_license = True
 android.allow_backup = True
-p4a.branch = v2024.01.21
 
+# 明确使用 develop 分支（确保存在）
+p4a.branch = develop
+openssl.version = 1.1.1w
