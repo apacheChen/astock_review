@@ -51,12 +51,13 @@ jobs:
           path: |
             ~/.buildozer
             ~/.cache/pip
-          key: buildozer-v7-${{ hashFiles('buildozer.spec') }}
-          restore-keys: buildozer-v7-
+          key: buildozer-v6-${{ hashFiles('buildozer.spec') }}
+          restore-keys: buildozer-v6-
 
-      - name: ⑧ 编译 APK(黑匣子)
-        env:
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
+      - name: ⑦.5 清理旧缓存（强制重新下载 NDK 和 p4a）
+        run: rm -rf ~/.buildozer/android/platform/android-ndk-* ~/.buildozer/android/platform/python-for-android ~/.buildozer/android/platform/build-arm64-v8a
+
+      - name: ⑧ 编译 APK（黑匣子）
         run: |
           buildozer android debug 2>&1 | tee build.log
           EXIT=${PIPESTATUS[0]}
@@ -70,6 +71,8 @@ jobs:
             tail -160 build.log || true
           fi
           exit $EXIT
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
 
       - name: ⑨ 存档完整日志
         if: always()
