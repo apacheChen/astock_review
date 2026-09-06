@@ -54,14 +54,10 @@ jobs:
           key: buildozer-v6-${{ hashFiles('buildozer.spec') }}
           restore-keys: buildozer-v6-
 
-      - name: ⑧ 编译 APK(黑匣子)
-      - name: Clean buildozer cache
+      - name: ⑦.5 清理旧 NDK 缓存（避免版本冲突）
         run: rm -rf ~/.buildozer/android/platform/android-ndk-* ~/.buildozer/android/platform/build-arm64-v8a
 
-      - name: Build APK
-        run: buildozer android debug
-        env:
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
+      - name: ⑧ 编译 APK（黑匣子）
         run: |
           buildozer android debug 2>&1 | tee build.log
           EXIT=${PIPESTATUS[0]}
@@ -75,6 +71,8 @@ jobs:
             tail -160 build.log || true
           fi
           exit $EXIT
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
 
       - name: ⑨ 存档完整日志
         if: always()
