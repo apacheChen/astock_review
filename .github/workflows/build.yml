@@ -21,7 +21,14 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: ③ 安装系统依赖(对照官方清单一次装齐)
+      - name: ③ 清理磁盘
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL /usr/local/share/boost \
+            /usr/local/lib/android/sdk || true
+          df -h /
+
+      - name: ④ 安装系统依赖
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential ccache git zip unzip \
@@ -30,45 +37,41 @@ jobs:
             zlib1g-dev libncurses-dev libtinfo5 \
             libffi-dev libssl-dev cmake libgl1 libltdl-dev
 
-      - name: ④ 指定 Java 17
+      - name: ⑤ 指定 Java 17
         run: echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
 
-      - name: ⑤ 安装 buildozer 与 cython
+      - name: ⑥ 安装 buildozer 与 cython
         run: |
           pip install --upgrade pip setuptools wheel
           pip install buildozer cython==0.29.36
 
-      - name: ⑥ 恢复打包缓存
+      - name: ⑦ 恢复打包缓存
         uses: actions/cache@v4
         with:
           path: |
             ~/.buildozer
             ~/.cache/pip
-          key: buildozer-v3-${{ hashFiles('buildozer.spec') }}
-          restore-keys: buildozer-v3-
+          key: buildozer-v6-${{ hashFiles('buildozer.spec') }}
+          restore-keys: buildozer-v6-
 
-      - name: ⑦ 编译 APK(黑匣子,保证失败时自动打印报错)
+      - name: ⑧ 编译 APK(黑匣子)
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
         run: |
           buildozer android debug 2>&1 | tee build.log
           EXIT=${PIPESTATUS[0]}
-          echo ">>> buildozer 第一次退出码: $EXIT"
-          if [ "$EXIT" -ne 0 ]; then
-            echo ">>> 第一次失败,自动重试一次……"
-            buildozer android debug 2>&1 | tee -a build.log
-            EXIT=${PIPESTATUS[0]}
-            echo ">>> buildozer 第二次退出码: $EXIT"
-          fi
+          echo ">>> buildozer 退出码: $EXIT"
           if [ "$EXIT" -ne 0 ]; then
             echo ""
             echo "==========【黑匣子】报错关键行(最后60条) =========="
-            grep -a -n -i -E "error:|fatal error|ErrorReturnCode|Traceback|autoreconf|No such file|not found|undefined reference|cannot find|Exception|FAILED" build.log | tail -60
+            grep -a -n -i -E "error:|fatal error|ErrorReturnCode|Traceback|No such file|not found|undefined reference|cannot find|Exception|FAILED|No space" build.log | tail -60 || true
             echo ""
-            echo "==========【黑匣子】日志末尾(含报错上下文) =========="
-            tail -160 build.log
+            echo "==========【黑匣子】日志末尾 =========="
+            tail -160 build.log || true
           fi
           exit $EXIT
 
-      - name: ⑧ 存档完整编译日志(无论成败都保存)
+      - name: ⑨ 存档完整日志
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -76,7 +79,7 @@ jobs:
           path: build.log
           retention-days: 7
 
-      - name: ⑨ 上传 APK 供下载
+      - name: ⑩ 上传 APK
         uses: actions/upload-artifact@v4
         with:
           name: astock-review-apk
