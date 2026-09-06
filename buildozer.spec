@@ -1,4 +1,4 @@
-# buildozer.spec —— Android 打包配置（# 开头为注释）
+# buildozer.spec
 
 [buildozer]
 log_level = 2
@@ -9,9 +9,9 @@ title = A股复盘助手
 package.name = astockreview
 package.domain = org.apachechen
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,json,txt
-requirements = python3,kivy==2.3.0,pandas,numpy,loguru
+source.include_exts = py,png,jpg,kv,atlas,ttf,otf,json,txt
 version = 1.0.0
+requirements = python3,kivy,pandas,numpy,loguru
 orientation = portrait
 fullscreen = 0
 android.permissions = INTERNET,ACCESS_NETWORK_STATE
@@ -19,10 +19,7 @@ android.minapi = 26
 android.api = 33
 android.ndk_api = 26
 android.archs = arm64-v8a
-android.ndk = 28c
+android.ndk = 25b
 android.accept_sdk_license = True
 android.allow_backup = True
-
-# ===== 以下为修复下载 404 的必要配置（请务必保留） =====
-p4a.branch = develop
-openssl.version = 1.1.1w
+p4a.branch = 2024.01.21
